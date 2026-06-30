@@ -31,7 +31,7 @@ bool UPMMO_PredictionComponent::PlayPredictedReactionOnTargetProxy(AActor* Targe
 	
 	const float StartPosition = GetReactionStartPosition(Reaction);
 	
-	const bool bPlayed = PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true, true);
+	const bool bPlayed = PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true);
 	
 	if (!bPlayed)
 	{
@@ -58,7 +58,7 @@ void UPMMO_PredictionComponent::ServerConfirmPredictedReaction_Implementation(FP
 
 	const float StartPosition = GetReactionStartPosition(Reaction);
 
-	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true, false);
+	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -150,7 +150,7 @@ void UPMMO_PredictionComponent::MulticastPlayConfirmedReaction_Implementation(FP
 		Context.PredictionId,
 		TargetActor ? static_cast<int32>(TargetActor->GetLocalRole()) : -1);
 
-	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true, false);
+	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true);
 }
 
 bool UPMMO_PredictionComponent::ConsumePendingPredictedReaction(const FPMMO_ReactionPredictionContext& Context,
@@ -189,7 +189,7 @@ void UPMMO_PredictionComponent::ClientPlayOwnerConfirmedReaction_Implementation(
 
 	const float StartPosition = GetReactionStartPosition(Reaction);
 
-	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true, false);
+	PlayReactionMontageOnActor(TargetActor, Reaction, StartPosition, true);
 }
 
 void UPMMO_PredictionComponent::MulticastFinishConfirmedReaction_Implementation(
@@ -454,7 +454,7 @@ float UPMMO_PredictionComponent::GetReactionStartPosition(const FPMMO_ReactionDa
 }
 
 bool UPMMO_PredictionComponent::PlayReactionMontageOnActor(AActor* TargetActor, const FPMMO_ReactionDataEntry& Reaction,
-	float StartPosition, bool bForceRestart, bool bDisableRootMotionExtraction) const
+	float StartPosition, bool bForceRestart) const
 {
 	if (!TargetActor || !Reaction.Montage) return false;
 
@@ -467,11 +467,6 @@ bool UPMMO_PredictionComponent::PlayReactionMontageOnActor(AActor* TargetActor, 
 	UAnimInstance* AnimInstance = Mesh->GetAnimInstance();
 	if (!AnimInstance) return false;
 
-	if (bDisableRootMotionExtraction && TargetActor->GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		AnimInstance->RootMotionMode = ERootMotionMode::NoRootMotionExtraction;
-	}
-	
 	if (!bForceRestart && AnimInstance->Montage_IsPlaying(Reaction.Montage))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("SP Reaction montage already playing, not restarting Target=%s Montage=%s"),

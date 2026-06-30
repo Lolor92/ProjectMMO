@@ -91,7 +91,7 @@ private:
 	float GetReactionStartPosition(const FPMMO_ReactionDataEntry& Reaction) const;
 	
 	bool PlayReactionMontageOnActor(AActor* TargetActor, const FPMMO_ReactionDataEntry& Reaction, float StartPosition,
-		bool bForceRestart, bool bDisableRootMotionExtraction) const;
+		bool bForceRestart) const;
 	
 	bool ConsumePendingPredictedReaction(const FPMMO_ReactionPredictionContext& Context, AActor* TargetActor,
 	FGameplayTag ReactionTag);
