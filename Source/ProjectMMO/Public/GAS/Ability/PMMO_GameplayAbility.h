@@ -22,4 +22,20 @@ public:
 
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
+protected:
+	UPROPERTY(EditDefaultsOnly, Category="Ability|Root Motion")
+	bool bStopRootMotionOnCapsuleContact = true;
+
+	UPROPERTY(EditDefaultsOnly, Category="Ability|Root Motion",
+		meta=(EditCondition="bStopRootMotionOnCapsuleContact", ClampMin="0.0", ClampMax="180.0", UIMin="0.0", UIMax="180.0", Units="Degrees"))
+	float RootMotionContactStopAngleDegrees = 40.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Ability|Root Motion",
+		meta=(EditCondition="bStopRootMotionOnCapsuleContact", ClampMin="0.0", ClampMax="100.0", UIMin="0.0", UIMax="100.0", Units="Percent"))
+	float RootMotionContactReleasePercent = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Ability|Root Motion",
+		meta=(EditCondition="bStopRootMotionOnCapsuleContact", ClampMin="0.0", UIMin="0.0", Units="Centimeters"))
+	float RootMotionContactCapsuleTolerance = 5.0f;
 };

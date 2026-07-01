@@ -133,6 +133,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="SyncPrediction|Reaction", meta=(ClampMin="0.0", Units="Centimeters"))
 	float FinalCorrectionTolerance = 2.0f;
 
+	UPROPERTY(EditAnywhere, Category="SyncPrediction|Reaction")
+	bool bApplyInstantFinalCorrection = false;
+
 	UPROPERTY(EditAnywhere, Category="SyncPrediction|Reaction", meta=(ClampMin="0.0", Units="Centimeters"))
 	float MaxInstantFinalCorrectionDistance = 35.0f;
 };

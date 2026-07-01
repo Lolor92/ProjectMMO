@@ -229,6 +229,17 @@ void UPMMO_PredictionComponent::MulticastFinishConfirmedReaction_Implementation(
 		return;
 	}
 
+	if (!bApplyInstantFinalCorrection)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("SP FinalCorrection skipped instant correction disabled Target=%s Distance=%.2f PredictionId=%d"),
+			*GetNameSafe(TargetActor),
+			Distance,
+			Context.PredictionId);
+
+		return;
+	}
+
 	if (Distance > MaxInstantFinalCorrectionDistance)
 	{
 		UE_LOG(LogTemp, Warning,
