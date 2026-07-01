@@ -39,6 +39,11 @@ bool UPMMO_PredictionComponent::PlayPredictedReactionOnTargetProxy(AActor* Targe
 		return false;
 	}
 
+	const float MontageLength = Reaction.Montage ? Reaction.Montage->GetPlayLength() : 0.f;
+	const float PlayRate = FMath::Max(FMath::Abs(Reaction.PlayRate), KINDA_SMALL_NUMBER);
+	const float IgnoreDuration = FMath::Max(0.05f, (MontageLength - StartPosition) / PlayRate);
+	AddTemporaryPredictedTargetMovementIgnore(TargetActor, IgnoreDuration);
+
 	ServerConfirmPredictedReaction(Context, TargetActor, ReactionTag);
 
 	return true;
@@ -441,6 +446,50 @@ void UPMMO_PredictionComponent::RemoveExpiredPendingPredictedReactions()
 			PendingPredictedReactions.RemoveAtSwap(Index);
 		}
 	}
+}
+
+void UPMMO_PredictionComponent::AddTemporaryPredictedTargetMovementIgnore(
+	AActor* TargetActor,
+	float DurationSeconds) const
+{
+	AActor* OwnerActor = GetOwner();
+	UWorld* World = GetWorld();
+	APawn* OwnerPawn = Cast<APawn>(OwnerActor);
+	if (!OwnerPawn || !TargetActor || !World)
+	{
+		return;
+	}
+
+	OwnerPawn->MoveIgnoreActorAdd(TargetActor);
+
+	UE_LOG(LogTemp, Warning, TEXT("SP MovementIgnore add Owner=%s Target=%s Duration=%.3f"),
+		*GetNameSafe(OwnerActor),
+		*GetNameSafe(TargetActor),
+		DurationSeconds);
+
+	TWeakObjectPtr<APawn> WeakOwner(OwnerPawn);
+	TWeakObjectPtr<AActor> WeakTarget(TargetActor);
+
+	FTimerHandle TimerHandle;
+	World->GetTimerManager().SetTimer(
+		TimerHandle,
+		[WeakOwner, WeakTarget]()
+		{
+			APawn* StrongOwner = WeakOwner.Get();
+			AActor* StrongTarget = WeakTarget.Get();
+			if (!StrongOwner || !StrongTarget)
+			{
+				return;
+			}
+
+			StrongOwner->MoveIgnoreActorRemove(StrongTarget);
+
+			UE_LOG(LogTemp, Warning, TEXT("SP MovementIgnore remove Owner=%s Target=%s"),
+				*GetNameSafe(StrongOwner),
+				*GetNameSafe(StrongTarget));
+		},
+		FMath::Max(0.05f, DurationSeconds),
+		false);
 }
 
 float UPMMO_PredictionComponent::GetReactionStartPosition(const FPMMO_ReactionDataEntry& Reaction) const

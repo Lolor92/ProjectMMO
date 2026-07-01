@@ -87,6 +87,7 @@ private:
 	void AddPendingPredictedReaction(const FPMMO_ReactionPredictionContext& Context, AActor* TargetActor,
 		FGameplayTag ReactionTag);
 	void RemoveExpiredPendingPredictedReactions();
+	void AddTemporaryPredictedTargetMovementIgnore(AActor* TargetActor, float DurationSeconds) const;
 	
 	float GetReactionStartPosition(const FPMMO_ReactionDataEntry& Reaction) const;
 	

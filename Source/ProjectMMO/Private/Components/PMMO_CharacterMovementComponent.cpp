@@ -16,11 +16,6 @@ static TAutoConsoleVariable<int32> CVarPMMORootMotionContactLog(
 	TEXT("Enable verbose root motion contact stop logging."),
 	ECVF_Default);
 
-namespace PMMORootMotionContactFlags
-{
-	constexpr uint8 RootMotionContactBlocked = FSavedMove_Character::FLAG_Custom_0;
-}
-
 namespace
 {
 const TCHAR* PMMONetModeToString(const UWorld* World)
@@ -52,51 +47,6 @@ bool PMMOShouldLogRootMotionContact()
 class FSavedMove_PMMOCharacter final : public FSavedMove_Character
 {
 public:
-	using Super = FSavedMove_Character;
-
-	virtual void Clear() override
-	{
-		Super::Clear();
-		bSavedRootMotionContactBlocked = false;
-	}
-
-	virtual uint8 GetCompressedFlags() const override
-	{
-		uint8 Result = Super::GetCompressedFlags();
-
-		if (bSavedRootMotionContactBlocked)
-		{
-			Result |= PMMORootMotionContactFlags::RootMotionContactBlocked;
-		}
-
-		return Result;
-	}
-
-	virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* Character, float MaxDelta) const override
-	{
-		const FSavedMove_PMMOCharacter* NewPMMOMove = static_cast<const FSavedMove_PMMOCharacter*>(NewMove.Get());
-		if (bSavedRootMotionContactBlocked != NewPMMOMove->bSavedRootMotionContactBlocked)
-		{
-			return false;
-		}
-
-		return Super::CanCombineWith(NewMove, Character, MaxDelta);
-	}
-
-	virtual void SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel,
-		FNetworkPredictionData_Client_Character& ClientData) override
-	{
-		Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
-
-		if (const UPMMO_CharacterMovementComponent* MoveComp =
-			Cast<UPMMO_CharacterMovementComponent>(Character->GetCharacterMovement()))
-		{
-			bSavedRootMotionContactBlocked = MoveComp->IsRootMotionContactBlocked();
-		}
-	}
-
-private:
-	uint8 bSavedRootMotionContactBlocked : 1 = false;
 };
 
 class FNetworkPredictionData_Client_PMMOCharacter final : public FNetworkPredictionData_Client_Character
@@ -134,6 +84,17 @@ void UPMMO_CharacterMovementComponent::ConfigureRootMotionContactStop(
 	float CapsuleTolerance,
 	UObject* SourceObject)
 {
+	const UObject* PreviousSource = RootMotionContactStopSource.Get();
+	if (bEnabled && PreviousSource && SourceObject && PreviousSource != SourceObject && bRootMotionContactBlocked)
+	{
+		PMMO_ROOT_MOTION_CONTACT_LOG(
+			TEXT("RootMotionContact CONFIG_SOURCE_CHANGED_CLEAR Owner=%s PreviousSource=%s NewSource=%s"),
+			*GetNameSafe(CharacterOwner),
+			*GetNameSafe(PreviousSource),
+			*GetNameSafe(SourceObject));
+		ClearRootMotionContactBlock();
+	}
+
 	bRootMotionContactStopEnabled = bEnabled;
 	RootMotionContactStopAngleDegrees = FMath::Clamp(StopAngleDegrees, 0.0f, 180.0f);
 	RootMotionContactReleasePercent = FMath::Clamp(ReleasePercent, 0.0f, 100.0f);
@@ -189,6 +150,15 @@ void UPMMO_CharacterMovementComponent::SetRootMotionContactBlock(
 {
 	const bool bWasBlocked = bRootMotionContactBlocked;
 	const FVector PreviousDirection = RootMotionContactBlockedDirection;
+	const FVector NewDirection = bBlocked ? InBlockedDirection.GetSafeNormal2D() : FVector::ZeroVector;
+	UAnimMontage* NewMontage = bBlocked ? GetRootMotionContactMontage() : nullptr;
+
+	if (bBlocked && bRootMotionContactBlocked &&
+		RootMotionContactBlockedDirection.Equals(NewDirection, UE_KINDA_SMALL_NUMBER) &&
+		RootMotionContactMontage.Get() == NewMontage)
+	{
+		return;
+	}
 
 	if (UWorld* World = GetWorld())
 	{
@@ -196,8 +166,8 @@ void UPMMO_CharacterMovementComponent::SetRootMotionContactBlock(
 	}
 
 	bRootMotionContactBlocked = bBlocked;
-	RootMotionContactBlockedDirection = bBlocked ? InBlockedDirection.GetSafeNormal2D() : FVector::ZeroVector;
-	RootMotionContactMontage = bBlocked ? GetRootMotionContactMontage() : nullptr;
+	RootMotionContactBlockedDirection = NewDirection;
+	RootMotionContactMontage = NewMontage;
 
 	if (bBlocked && Duration > 0.0f)
 	{
@@ -257,18 +227,6 @@ void UPMMO_CharacterMovementComponent::ClearRootMotionContactBlock()
 void UPMMO_CharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
-
-	if (CharacterOwner && !CharacterOwner->IsLocallyControlled())
-	{
-		const bool bBlocked = (Flags & PMMORootMotionContactFlags::RootMotionContactBlocked) != 0;
-		if (bBlocked && !RootMotionContactBlockedDirection.IsNearlyZero())
-		{
-			const float BlockDuration = RootMotionContactReleasePercent >= 100.0f
-				? RootMotionContactBlockDuration
-				: 0.0f;
-			SetRootMotionContactBlock(true, RootMotionContactBlockedDirection, BlockDuration);
-		}
-	}
 }
 
 FNetworkPredictionData_Client* UPMMO_CharacterMovementComponent::GetPredictionData_Client() const
